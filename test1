@@ -1,0 +1,400 @@
+#include "BigNumAdd.h"
+
+void BigIntAdd_Test(void)
+{
+ SEGGER_RTT_printf(0,"RTT test sucess11122.\n");
+ 
+	BIGINT num1;
+	pBIGINT pnum1 = &num1;
+	
+//	BigInt_Init(pnum1);
+	
+// u8 a[] = {0x11,0x11,0x11,0x11,0xAA,0x67,0xFA,};
+////  u8 a[8] = {0x00,0x00,0x00,0x66,0xAA,0xAA,0xAA,0xA0};
+ u8 a1[32] = {
+		 0xFA,0x33,0x33,0x33,0xE3,0x33,0x33,0x33,
+		 0x33,0x33,0x33,0x33,0x33,0x33,0x33,0x33,
+		 0x33,0x33,0x33,0xA3,0x33,0x33,0x33,0x33,
+		 0x33,0x33,0x33,0x3B,0x33,0x33,0x43,0x30};
+ pnum1->num = a1;
+ pnum1->sign = 0;
+ pnum1->digit = 32;//大数初始化
+ 
+ SEGGER_RTT_printf(0,"%02x \n",pnum1->num[0]);
+ 
+ SEGGER_RTT_printf(0,"RTT test sucess11144.\n");
+ 
+  BIGINT num2;
+	pBIGINT pnum2  = &num2;
+ 
+// BigInt_Init(pnum2);//每定义一个大数就初始化
+
+// u8 b[] = {0x02,0x33};
+////  u8 b[8] = {0x00,0x00,0x0A,0xAA,0xAA,0xAA,0xAA,0xA9};
+ u8 b1[32] = {
+	 0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,
+	 0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,
+	 0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,
+	 0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22};
+ pnum2->num = b1;
+ pnum2->sign = 1;
+ pnum2->digit = 32;
+ 
+ SEGGER_RTT_printf(0,"RTT test sucess11133.\n");
+ SEGGER_RTT_printf(0,"%02x \n",pnum2->num[0]);
+ 
+   BIGINT num3;
+	pBIGINT pnum3  = &num3;
+ 
+// num3 = num1;
+ 
+
+ BigInt_Init(pnum3);//一定要先初始化
+// BigIntComp(pnum1,pnum2,pnum3);//较大数在前
+	 
+	BigIntAdd(pnum1,pnum2,pnum3);
+//	BigIntSub(pnum1,pnum2,pnum3);
+//	 BigIntMul(pnum1,pnum2,pnum3);
+	
+	u8 i;
+	SEGGER_RTT_printf(0,"num1:\n");
+	for(i=0;i<pnum1->digit;i++)
+	{
+		SEGGER_RTT_printf(0,"%02x ",pnum1->num[i]);
+	}
+	SEGGER_RTT_printf(0,"\n");
+	
+		SEGGER_RTT_printf(0,"num2:\n");
+	for(i=0;i<pnum2->digit;i++)
+	{
+		SEGGER_RTT_printf(0,"%02x ",pnum2->num[i]);
+	}
+	SEGGER_RTT_printf(0,"\n");
+
+		SEGGER_RTT_printf(0,"num3:\n");
+	for(i=0;i<pnum3->digit;i++)
+	{
+		SEGGER_RTT_printf(0,"%02x ",pnum3->num[i]);
+	}
+	SEGGER_RTT_printf(0,"\n");
+	
+ }
+
+//大数加小数，大数是被加数
+/*
+ 函数：大数加法
+ 功能：计算两个大数的加法
+ 输入:
+ 输出：
+ 备注：两个大数同符号，不同就用减法
+ */
+ 
+void BigIntAdd(pBIGINT num1,pBIGINT num2,pBIGINT result)
+{
+	BigIntComp(num1,num2,result);//较大数在前
+	
+	int i,j,k,carry;
+	carry = 0;//清除进位
+	result->sign = num1->sign;//保存符号,绝对值大的符号
+	result->digit = num1->digit + 1;//只需要多一位
+	
+	u8 *p;
+	p = (u8 *)malloc((result->digit+1)*sizeof(u8));
+	if(p == NULL)
+		SEGGER_RTT_printf(0,"Error1!\n");
+	
+	result->num = p;//大数初始化
+	
+	//将被加数复制到结果数组中；
+	for(i=0;i<num1->digit;i++)
+	{
+//		SEGGER_RTT_printf(0,"test11111222222\n");
+		result->num[i+1] = num1->num[i];//result是比大数还要多一位的，保证进位
+	}
+	SEGGER_RTT_printf(0,"test22222222222888\n");
+	//加法
+	for(i=0;i<num2->digit;i++)
+	{
+		j = num2->digit-i-1;//大端序    ?
+		k = result->digit-i-1;
+		
+		carry = (result->num[k]+num2->num[j]+carry)/ChARWARD;//除法向下取整，计算进位
+		
+		if(carry)
+			result->num[k-1] = result->num[k-1] +1;
+		
+		result->num[k] = (result->num[k]+num2->num[j])%ChARWARD;//进位后保留下来的一位
+
+//			SEGGER_RTT_printf(0,"%02x\n",carry);
+	}
+	
+	BigIntTrim(result);//整理结果
+	
+}
+
+
+//整理大数结果，去掉前面位数多的0,调整位数
+void BigIntTrim(pBIGINT BigInt)
+{
+	
+
+	u8 i,j;
+	for(i=0;i<BigInt->digit;)
+	{
+		if(BigInt->num[i] == 0)
+		{
+			u8 *p;
+			p = (u8 *)malloc((BigInt->digit-1)*sizeof(u8));
+			if(p == NULL)
+				SEGGER_RTT_printf(0,"Error1!\n");
+//			u8 tmp[BigInt->digit-1];
+			
+			for(j=0;j<BigInt->digit-1;j++)
+			{
+				p[j] = BigInt->num[j+1];
+			}
+			BigInt->num = p;
+			BigInt->digit = BigInt->digit-1;
+		}
+		
+		if(BigInt->num[i])
+			break;
+	}
+}
+
+
+//大数num1减小数num1，大数是被减数
+/*
+ 函数：大数减法
+ 功能：计算两个大数的减法
+ 备注：可以看做异号加法，结果的位数最多和较大数位数一致
+ */
+ void BigIntSub(pBIGINT num1,pBIGINT num2,pBIGINT result)
+ {
+		BigIntComp(num1,num2,result);//较大数在前
+	 
+	int i,j1,j2;
+	int borrow;
+	borrow = 0;//清除借位
+	 //
+	result->sign = num1->sign;//保存符号
+	result->digit = num1->digit ;
+	 
+	u8 *p;
+	p = (u8 *)malloc(result->digit*sizeof(u8));
+	if(p == NULL)
+		SEGGER_RTT_printf(0,"Error1!\n");
+	
+	result->num = p;//大数初始化
+	 
+	//将被减数复制到结果数组中；
+	for(i=0;i<num1->digit;i++)
+	{
+//		SEGGER_RTT_printf(0,"test11111222222\n");
+		result->num[i] = num1->num[i];//结果理论最大的位数
+	}
+	SEGGER_RTT_printf(0,"test22222222222333\n");
+	//减法
+	for(i=0;i<num2->digit;i++)
+	{
+//		j = num1->digit - num2->digit +i;//大端序
+		j1 = result->digit-i - 1;
+		j2 = num2->digit-i -1;
+
+		//需借位
+		if(result->num[j1]< num2->num[j2])
+			borrow = 256;//?
+		else
+			borrow = 0;
+		
+		result->num[j1] = result->num[j1] + borrow - num2->num[j2];
+
+		if(borrow)
+			result->num[j1-1] = result->num[j1-1] - 1; 
+
+		}
+	
+			BigIntTrim(result);//整理结果
+ }
+/*
+函数：两个同符号大数的比较
+输入：大数num1
+			大数num2
+输出：更大数在前
+返回值：0:num2大
+				1:num1大
+			
+备注：用于大数运算,配算好大数顺序
+*/
+
+u8 BigIntComp(pBIGINT pnum1,pBIGINT pnum2,pBIGINT pnum3)
+{
+	u8 i;
+ //符号不用处理，只需要处理位数
+
+
+ if(pnum1->digit < pnum2->digit)
+ {
+    pnum3->sign  = pnum2->sign;
+    pnum3->digit = pnum2->digit;
+    pnum3->num   = pnum2->num;
+    
+    pnum2->sign  = pnum1->sign;
+    pnum2->digit = pnum1->digit;
+    pnum2->num   = pnum1->num;
+   
+    pnum1->sign  = pnum3->sign;
+    pnum1->digit = pnum3->digit;
+    pnum1->num   = pnum3->num;
+  
+  return 0;
+ }
+
+ if(pnum1->digit == pnum2->digit)
+ {
+	 SEGGER_RTT_printf(0,"Error2****66!\n");
+	 
+//	pnum3->digit = pnum1->digit;
+//	pnum3->sign = pnum1->sign;
+//	
+//	u8 *p;
+//	p = (u8 *)malloc(pnum3->digit*sizeof(u8));
+//	if(p == NULL)
+//		SEGGER_RTT_printf(0,"Error1111!\n");
+//	
+//	pnum3->num = p;//大数初始化
+ 
+  for(i=0;i<(pnum1->digit);i++)
+  {
+   if(pnum1->num[i] < pnum2->num[i])
+   {
+    pnum3->sign  = pnum2->sign;
+    pnum3->digit = pnum2->digit;
+    pnum3->num   = pnum2->num;
+    
+    pnum2->sign  = pnum1->sign;
+    pnum2->digit = pnum1->digit;
+    pnum2->num   = pnum1->num;
+   
+    pnum1->sign  = pnum3->sign;
+    pnum1->digit = pnum3->digit;
+    pnum1->num   = pnum3->num;
+		 
+		 return 0;
+   }
+	
+	
+  }
+  
+	}
+
+	return 1;
+}
+
+//大数初始化
+void BigInt_Init(pBIGINT num)
+{
+	num->digit = 0;
+	num->sign  = 0;//初始化都为正数
+	num->num = NULL;
+	
+}
+
+
+/*
+ 函数：大数乘法
+ 功能：计算两个大数的乘法
+ 输入:
+ 输出：
+ 备注：用于大数的幂运算
+			位数最多是两个大数位数的和
+			符号只需要考虑有无符号，一正一负取负，两负取正
+			较大数在前可以减少运算次数
+			被除数在前
+ */
+// void BigIntMul(pBIGINT num1,pBIGINT num2,pBIGINT result)
+// {
+//		BigIntComp(num1,num2,result);//较大数在前
+//	 
+////	 u8 i,j;
+//	 u8 carry = 0;//进位清零
+//	 
+//	 if(num1->sign == num2->sign)
+//		result->sign = 0;//结果为正
+//	 else
+//		result->sign = 1;//结果为负
+//	 
+//		result->digit = num1->digit + num2->digit ;
+//		 
+//		u8 *p;
+//		p = (u8 *)malloc(result->digit*sizeof(u8));
+//		if(p == NULL)
+//			SEGGER_RTT_printf(0,"Error1!\n");
+//		
+//		result->num = p;//结果初始化
+		
+//		//将被除数复制到结果数组
+//			for(i=0;i<num1->digit;i++)
+//		{
+//			result->num[num2->digit+i] = num1->num[i];//结果理论最大的位数
+//		}
+//		
+//		for(i=0;i<num2->digit;i++)
+//		{
+//			for(j=0;j<num1->digit;j++)
+//			{
+//				carry = (num1->num[num1->digit-j-1]*num2->num[num2->digit-i-1])/256;
+//			
+//				result->num[result->digit-j-1] = num1->num[num1->digit-i-1]*num2->num[num2->digit-i-1]%256;
+//				
+//				if(carry)
+//					result->num[result->digit-j-2] = result->num[result->digit-i-2] + carry;
+//			}
+			
+//		}
+
+
+
+		
+	
+	
+	
+//}
+
+
+#ifndef _BIGNUMADD_H_
+#define _BIGNUMADD_H_
+
+#include "stm32f10x.h"
+#include "SEGGER_RTT.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define ChARWARD  256
+
+//大数的结构
+typedef struct bigint
+{
+	u8 *num;//指向长整型数组（序号0保存最高位）
+	u8 sign;//大数符号（0表示正数，1表示负数）
+	u8 digit;//保存该数的位数（实际位数）//该算法中一个字节为一位
+}BIGINT,*pBIGINT;
+
+
+
+
+void BigIntAdd(pBIGINT num1,pBIGINT num2,pBIGINT result);
+void BigIntSub(pBIGINT num1,pBIGINT num2,pBIGINT result);
+void BigIntMul(pBIGINT num1,pBIGINT num2,pBIGINT result);
+
+void BigIntTrim(pBIGINT BigInt);
+u8 BigIntComp(pBIGINT pnum1,pBIGINT pnum2,pBIGINT pnum3);
+
+void BigIntAdd_Test(void);
+
+void BigInt_Init(pBIGINT num);
+void BigIntTrim(pBIGINT BigInt);
+
+#endif
